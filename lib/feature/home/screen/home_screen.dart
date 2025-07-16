@@ -1,7 +1,8 @@
+import 'package:api1/cubit/category_cubit.dart';
+import 'package:api1/feature/home/widgets/category_button.dart';
 import 'package:api1/feature/home/widgets/custom_product_card.dart';
-import 'package:api1/feature/models/product_model.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,26 +12,22 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final Dio dio = Dio();
-
-  Future<List<dynamic>> getData() async {
-    final response = await dio.get(
-      'https://fakestoreapi.com/products/category/jewelery',
-    );
-    final data = response.data;
-    return data;
+  late CategoryCubit cubit;
+  @override
+  void initState() {
+    super.initState();
+    cubit = context.read<CategoryCubit>();
+    cubit.fetchData(index: 0);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<dynamic>>(
-      future: getData(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+    return BlocBuilder<CategoryCubit, CategoryState>(
+      builder: (context, state) {
+        if (state is CategoryLoadimgState) {
           return Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Text('ERROR');
-        } else if (snapshot.hasData) {
+        } else if (state is CategorySuccessState) {
+          state.list;
           return Scaffold(
             backgroundColor: Colors.white,
             appBar: AppBar(
@@ -38,26 +35,28 @@ class _HomeScreenState extends State<HomeScreen> {
               title: Text('Products'),
               centerTitle: true,
             ),
-            body: GridView.builder(
-              padding: EdgeInsets.all(20),
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                final item = snapshot.data![index];
-                final product = ProductModel(
-                  image: item['image'],
-                  title: item['title'],
-                  description: item['description'],
-                  rate: item['rating']['rate'],
-                  count: item['rating']['count'],
-                  price: item['price'],
-                );
-                return CustomProductCard(productModel: product);
-              },
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 5,
-                childAspectRatio: 0.6,
-              ),
+            body: Column(
+              children: [
+                CategoryButton(
+                  onTap: (url,index) => cubit.fetchData(url: url,index: index),
+                  selectedIndex: cubit.selectedIndex,
+                ),
+
+                Expanded(
+                  child: GridView.builder(
+                    padding: EdgeInsets.all(20),
+                    itemCount: state.list.length,
+                    itemBuilder: (context, index) {
+                      return CustomProductCard(productModel: state.list[index]);
+                    },
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 5,
+                      childAspectRatio: 0.6,
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         }
